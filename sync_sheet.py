@@ -14,7 +14,7 @@ COLUMN_MAPPING = {
     "LOCATION": "City"
 }
 
-ROW_VALUES = ["Victor Duran", "Armando Garcia", "Paul Watson", "Chris Solomon", "Ricardo Martinez"]
+ROW_VALUES = ["vduran@ltspower.com", "armagarcia@ltspower.com", "pwatson@ltspower.com", "chsolomon@ltspower.com", "ricamartinez@ltspower.com"]
 
 # Initialize Smartsheet client
 client = smartsheet.Smartsheet(API_KEY)
