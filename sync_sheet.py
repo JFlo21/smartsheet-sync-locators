@@ -9,9 +9,9 @@ TARGET_SHEET_ID = "rWjVj7g4M72fFjmjfFC8FfR8cFW8jxwP9QVCX431"
 
 # Column Mapping
 COLUMN_MAPPING = {
-    "FOREMAN": "Foreman",
-    "WORK REQUEST #": "WR #",
-    "LOCATION": "City"
+    "FOREMAN":"Foreman",
+    "WORK REQUEST #":"WR #",
+    "LOCATION":"City"
 }
 
 ROW_VALUES = ["vduran@ltspower.com", "armagarcia@ltspower.com", "pwatson@ltspower.com", "chsolomon@ltspower.com", "ricamartinez@ltspower.com"]
