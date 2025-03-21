@@ -23,7 +23,7 @@ jobs:
 
     - name: Run Synchronization Script
       env:
-        API_KEY: ${{ secrets.SMARTSHEET_API_KEY }}
+        SMARTSHEET_API_KEY: ${{ secrets.SMARTSHEET_API_KEY }}
         SOURCE_SHEET_ID: ${{ secrets.SOURCE_SHEET_ID }}
         TARGET_SHEET_ID: ${{ secrets.TARGET_SHEET_ID }}
 
