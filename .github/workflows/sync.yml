@@ -27,4 +27,4 @@ jobs:
         SOURCE_SHEET_ID: ${{ secrets.SOURCE_SHEET_ID }}
         TARGET_SHEET_ID: ${{ secrets.TARGET_SHEET_ID }}
 
-      run: python sync_sheets.py
+      run: python sync_sheet.py
