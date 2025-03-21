@@ -42,7 +42,7 @@ def copy_rows_with_mapping(source_sheet, target_sheet, source_rows, column_map):
                 new_row.cells = [
                     smartsheet.models.Cell({
                         "column_id": column_map[cell.column_id],
-                        "value": cell.value
+                        "value": int(cell.value) if column_map[cell.column_id] == "WR #" else cell.value
                     }) for cell in row.cells if cell.column_id in column_map
                 ]
 
