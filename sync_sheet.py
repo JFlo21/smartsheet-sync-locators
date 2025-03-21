@@ -31,26 +31,40 @@ def get_column_map(sheet, column_mapping):
             column_map[col.id] = column_mapping[col.title]
     return column_map
 
-def copy_rows_with_mapping(source_sheet, target_sheet, source_rows, column_map):
-    """Copy rows from source to target sheet based on mapping."""
+def copy_rows_with_mapping_and_attachments(source_sheet, target_sheet, source_rows, column_map):
+    """
+    Copy rows from the source sheet to the target sheet with mapping
+    and include attachments for each row.
+    """
     for row in source_rows:
+        # Create a new row for the target sheet
+        new_row = smartsheet.models.Row()
+        new_row.to_bottom = True
+
         for cell in row.cells:
-            if cell.column_id in column_map and cell.value in ROW_VALUES:
-                # Create new row for target sheet
-                new_row = smartsheet.models.Row()
-                new_row.to_bottom = True
-                new_row.cells = [
+            if cell.column_id in column_map:
+                target_column_id = column_map[cell.column_id]
+
+                # Handle contact columns (e.g., FOREMAN) and extract email if necessary
+                if isinstance(cell.value, dict) and "email" in cell.value:
+                    value = cell.value["email"]  # Extract email for contact list columns
+                else:
+                    value = cell.value  # Use the existing value for other columns
+
+                # Add mapped cell to the new row
+                new_row.cells.append(
                     smartsheet.models.Cell({
-                        "column_id": column_map[cell.column_id],
-                        "value": int(cell.value) if column_map[cell.column_id] == "WR #" else cell.value
-                    }) for cell in row.cells if cell.column_id in column_map
-                ]
+                        "column_id": target_column_id,
+                        "value": value
+                    })
+                )
 
-                # Add new row to target sheet
-                created_row = client.Sheets.add_rows(target_sheet.id, [new_row]).result[0]
+        # Add the new row to the target sheet
+        created_row = client.Sheets.add_rows(target_sheet.id, [new_row]).result[0]
 
-                # Copy attachments
-                copy_attachments(row.id, created_row.id)
+        # Copy attachments from the source row to the target row
+        copy_attachments(row.id, created_row.id)
+
 
 def copy_attachments(source_row_id, target_row_id):
     """Copy attachments from source row to target row."""
