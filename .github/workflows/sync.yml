@@ -36,4 +36,12 @@ jobs:
         Smartsheet_Target_Sheet_ID_Martin: ${{ secrets.Smartsheet_Target_Sheet_ID_Martin }}
 
       run: python sync_sheet_martin.py
+
+    - name: Run Third Synchronization Step
+      env:
+        SMARTSHEET_API_KEY: ${{ secrets.SMARTSHEET_API_KEY }}
+        SOURCE_SHEET_ID: ${{ secrets.SOURCE_SHEET_ID }}
+        Smartsheet_Target_Sheet_ID_Frank: ${{ secrets. Smartsheet_Target_Sheet_ID_Frank}}
+
+      run: python sync_sheet_frank.py
      
