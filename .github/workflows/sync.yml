@@ -28,3 +28,4 @@ jobs:
         TARGET_SHEET_ID: ${{ secrets.TARGET_SHEET_ID }}
 
       run: python sync_sheet.py
+     

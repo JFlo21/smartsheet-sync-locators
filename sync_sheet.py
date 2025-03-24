@@ -76,6 +76,10 @@ def copy_rows_with_mapping(source_rows, existing_wr_keys, target_sheet_id):
             if getattr(row, "locked", False):
                 continue
 
+            foreman = next((c.value for c in row.cells if c.column_id == FOREMAN_COLUMN_ID), None)
+            if not foreman or foreman not in VALID_FOREMEN:
+                continue
+
             wr = next((c.value for c in row.cells if c.column_id == SOURCE_WR_NUMBER_COLUMN_ID), None)
             if not wr or str(wr).strip() == "":
                 print(f"⚠️ Skipping row {row.id}: blank WR #")
@@ -87,23 +91,20 @@ def copy_rows_with_mapping(source_rows, existing_wr_keys, target_sheet_id):
                 continue
 
             if wr_key in existing_wr_keys:
-                continue
-
-            foreman = next((c.value for c in row.cells if c.column_id == FOREMAN_COLUMN_ID), None)
-            if foreman not in VALID_FOREMEN:
+                print(f"⏭️ WR #{wr_key} already in target — skipping.")
                 continue
 
             new_row = smartsheet.models.Row()
             new_row.to_bottom = True
             for c in row.cells:
-                if c.column_id in COLUMN_MAPPING and c.value:
+                if c.column_id in COLUMN_MAPPING and c.value is not None:
                     new_row.cells.append(smartsheet.models.Cell({
                         "column_id": COLUMN_MAPPING[c.column_id],
                         "value": c.value
                     }))
 
             created = client.Sheets.add_rows(target_sheet_id, [new_row]).result[0]
-            print(f"✅ Row copied: WR #{wr_key}")
+            print(f"✅ Copied new row: WR #{wr_key}")
             copy_attachments(row.id, created.id)
 
         except Exception as e:
@@ -131,16 +132,19 @@ def update_changed_rows(source_rows, target_rows, column_map):
         if wr_key not in tgt_map:
             continue
         tgt_row = tgt_map[wr_key]
-        tgt_values = {c.column_id: c.value for c in tgt_row.cells}
+        tgt_cell_map = {c.column_id: c.value for c in tgt_row.cells}
         updates = []
 
         for sc in src_row.cells:
             if sc.column_id in column_map:
                 tgt_col = column_map[sc.column_id]
-                if sc.value != tgt_values.get(tgt_col):
+                source_val = sc.value
+                target_val = tgt_cell_map.get(tgt_col)
+
+                if source_val is not None and (target_val is None or source_val != target_val):
                     updates.append(smartsheet.models.Cell({
                         "column_id": tgt_col,
-                        "value": sc.value
+                        "value": source_val
                     }))
 
         if updates:

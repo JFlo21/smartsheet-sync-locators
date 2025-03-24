@@ -1,29 +1,27 @@
 import smartsheet
 import os
 import requests
-import time
-import threading
 import hashlib
 
-# API Key
+# API Key and Sheet IDs
 API_KEY = "wCQ53EjJ5LncpdIkuHH0ZC23nH3SEHDQnZSuN"
-
-# Sheet IDs
 SOURCE_SHEET_ID = "7261271259828100"
 TARGET_SHEET_ID = "6341072436285316"
 
+# Column mappings
 COLUMN_MAPPING = {
-    7525747076059012: 5333430655209348,  # FOREMAN -> Foreman
-    488872658292612: 8148180422315908,   # WORK REQUEST # -> WR #
-    2740672471977860: 829831027838852    # LOCATION -> City
+    7525747076059012: 5930423358279556,  # FOREMAN -> Foreman
+    488872658292612: 7056323265122180,   # WORK REQUEST # -> WR #
+    2740672471977860: 1426823730909060   # LOCATION -> City
 }
 
 SOURCE_WR_NUMBER_COLUMN_ID = 488872658292612
-TARGET_WR_NUMBER_COLUMN_ID = 8148180422315908
-FOREMAN_COLUMN_ID = 5333430655209348
+TARGET_WR_NUMBER_COLUMN_ID = 7056323265122180
+FOREMAN_COLUMN_ID = 7525747076059012
 
 VALID_FOREMEN = [
-    "Frank Ochoa III", "Frank Ochoa Jr", "Chris Rawls", "Abraham Hernandez", "Israel Ortiz"
+    "Francisco Ochoa III", "Frank Ochoa Jr", "Chris Rawls",
+    "Abraham Rodriguez Hernandez", "Israel Ortiz"
 ]
 
 client = smartsheet.Smartsheet(API_KEY)
@@ -76,6 +74,10 @@ def copy_rows_with_mapping(source_rows, existing_wr_keys, target_sheet_id):
             if getattr(row, "locked", False):
                 continue
 
+            foreman = next((c.value for c in row.cells if c.column_id == FOREMAN_COLUMN_ID), None)
+            if not foreman or foreman not in VALID_FOREMEN:
+                continue
+
             wr = next((c.value for c in row.cells if c.column_id == SOURCE_WR_NUMBER_COLUMN_ID), None)
             if not wr or str(wr).strip() == "":
                 print(f"⚠️ Skipping row {row.id}: blank WR #")
@@ -87,23 +89,20 @@ def copy_rows_with_mapping(source_rows, existing_wr_keys, target_sheet_id):
                 continue
 
             if wr_key in existing_wr_keys:
-                continue
-
-            foreman = next((c.value for c in row.cells if c.column_id == FOREMAN_COLUMN_ID), None)
-            if foreman not in VALID_FOREMEN:
+                print(f"⏭️ WR #{wr_key} already in target — skipping.")
                 continue
 
             new_row = smartsheet.models.Row()
             new_row.to_bottom = True
             for c in row.cells:
-                if c.column_id in COLUMN_MAPPING and c.value:
+                if c.column_id in COLUMN_MAPPING and c.value is not None:
                     new_row.cells.append(smartsheet.models.Cell({
                         "column_id": COLUMN_MAPPING[c.column_id],
                         "value": c.value
                     }))
 
             created = client.Sheets.add_rows(target_sheet_id, [new_row]).result[0]
-            print(f"✅ Row copied: WR #{wr_key}")
+            print(f"✅ Copied new row: WR #{wr_key}")
             copy_attachments(row.id, created.id)
 
         except Exception as e:
@@ -131,16 +130,19 @@ def update_changed_rows(source_rows, target_rows, column_map):
         if wr_key not in tgt_map:
             continue
         tgt_row = tgt_map[wr_key]
-        tgt_values = {c.column_id: c.value for c in tgt_row.cells}
+        tgt_cell_map = {c.column_id: c.value for c in tgt_row.cells}
         updates = []
 
         for sc in src_row.cells:
             if sc.column_id in column_map:
                 tgt_col = column_map[sc.column_id]
-                if sc.value != tgt_values.get(tgt_col):
+                source_val = sc.value
+                target_val = tgt_cell_map.get(tgt_col)
+
+                if source_val is not None and (target_val is None or source_val != target_val):
                     updates.append(smartsheet.models.Cell({
                         "column_id": tgt_col,
-                        "value": sc.value
+                        "value": source_val
                     }))
 
         if updates:
