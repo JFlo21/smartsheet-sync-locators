@@ -28,4 +28,12 @@ jobs:
         TARGET_SHEET_ID: ${{ secrets.TARGET_SHEET_ID }}
 
       run: python sync_sheet.py
+
+    - name: Run Second Synchronization Step
+      env:
+        SMARTSHEET_API_KEY: ${{ secrets.SMARTSHEET_API_KEY }}
+        SOURCE_SHEET_ID: ${{ secrets.SOURCE_SHEET_ID }}
+        Smartsheet_Target_Sheet_ID_Martin: ${{ secrets.Smartsheet_Target_Sheet_ID_Martin }}
+
+      run: python sync_sheet_martin.py
      
