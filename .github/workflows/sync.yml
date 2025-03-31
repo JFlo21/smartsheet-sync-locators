@@ -45,7 +45,7 @@ jobs:
 
       run: python sync_sheet_frank.py
 
-    - name: Run Third Synchronization Step
+    - name: Run Angel Garays Workflow Step
       env:
         SMARTSHEET_API_KEY: ${{ secrets.SMARTSHEET_API_KEY }}
         SOURCE_SHEET_ID: ${{ secrets.SOURCE_SHEET_LAREDO_ID }}
