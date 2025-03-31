@@ -27,7 +27,7 @@ jobs:
         SOURCE_SHEET_ID: ${{ secrets.SOURCE_SHEET_ID }}
         TARGET_SHEET_ID: ${{ secrets.TARGET_SHEET_ID }}
 
-      run: ./'Locator Sheets'/sync_sheet.py
+      run: python ./'Locator Sheets'/sync_sheet.py
 
     - name: Run Second Synchronization Step
       env:
