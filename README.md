@@ -4,7 +4,7 @@
 <p><strong>if you have any questions about this source code, please contact me</strong></p>
 <ul>
   <li><strong>Name:</strong><p>Juan Flores</p></li>
-  <li><strong>Email:</strong><p><ajuflores@ltspower.com/></p></li>
+  <li><strong>Email:</strong><a href = "juflores@ltspower.com" <p>juflores@ltspower.com</p> </a></li>
   <li><strong>Phone Number:</strong><p>325-253-6406</p></li>
 </ul>
 <br/>
