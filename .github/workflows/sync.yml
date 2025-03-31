@@ -27,7 +27,7 @@ jobs:
         SOURCE_SHEET_ID: ${{ secrets.SOURCE_SHEET_ID }}
         TARGET_SHEET_ID: ${{ secrets.TARGET_SHEET_ID }}
 
-      run: python sync_sheet.py
+      run: ./'Locator Sheets'/sync_sheet.py
 
     - name: Run Second Synchronization Step
       env:
@@ -35,7 +35,7 @@ jobs:
         SOURCE_SHEET_ID: ${{ secrets.SOURCE_SHEET_ID }}
         Smartsheet_Target_Sheet_ID_Martin: ${{ secrets.Smartsheet_Target_Sheet_ID_Martin }}
 
-      run: python sync_sheet_martin.py
+      run: python ./'Locator Sheets'/sync_sheet_martin.py
 
     - name: Run Third Synchronization Step
       env:
@@ -43,7 +43,7 @@ jobs:
         SOURCE_SHEET_ID: ${{ secrets.SOURCE_SHEET_ID }}
         Smartsheet_Target_Sheet_ID_Frank: ${{ secrets. Smartsheet_Target_Sheet_ID_Frank}}
 
-      run: python sync_sheet_frank.py
+      run: python ./'Locator Sheets'/sync_sheet_frank.py
 
     - name: Run Angel Garays Workflow Step
       env:
@@ -51,5 +51,5 @@ jobs:
         SOURCE_SHEET_ID: ${{ secrets.SOURCE_SHEET_LAREDO_ID }}
         Smartsheet_Target_Sheet_ID_Frank: ${{ secrets. Smartsheet_Target_Sheet_ID_Angel}}
 
-      run: python sync_sheet_angel.py
+      run: python ./'Locator Sheets'/sync_sheet_angel.py
      
