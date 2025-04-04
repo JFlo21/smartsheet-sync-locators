@@ -14,13 +14,11 @@ COLUMN_MAPPING = {
     2740672471977860: 6839263884955524,  # LOCATION -> City
 }
 
-# Column IDs
 SOURCE_WR_NUMBER_COLUMN_ID = 488872658292612
 TARGET_WR_NUMBER_COLUMN_ID = 2335664257585028
 FOREMAN_COLUMN_ID = 7525747076059012
-COMPLETED_DATE_COLUMN_ID = 1051822611713924  # NEW column check
+COMPLETED_DATE_COLUMN_ID = 1051822611713924
 
-# Valid foremen
 VALID_FOREMEN = [
     "Ramon Perez", "Christopher Tiner", "Alphonso Flores", "Joe Hatman", "Dylan Hester", "Kyle Wagner",
     "Jimmy Adames", "Cody Tipps", "Walker Moody", "Travis McConnell"
@@ -70,13 +68,49 @@ def copy_attachments(source_row_id, target_row_id):
     except Exception as e:
         print(f"❌ Attachment sync error: {e}")
 
+def sync_target_attachments_to_source(source_rows, target_rows):
+    print("\n🔁 Syncing attachments from target → source...")
+    src_map = {}
+    for r in source_rows:
+        for c in r.cells:
+            if c.column_id == SOURCE_WR_NUMBER_COLUMN_ID and c.value:
+                try:
+                    src_map[int(str(c.value).split('.')[0])] = r.id
+                except: pass
+
+    for row in target_rows:
+        try:
+            wr = next((c.value for c in row.cells if c.column_id == TARGET_WR_NUMBER_COLUMN_ID), None)
+            wr_key = int(str(wr).split('.')[0]) if wr else None
+            if not wr_key or wr_key not in src_map:
+                continue
+            source_row_id = src_map[wr_key]
+
+            target_attachments = client.Attachments.list_row_attachments(TARGET_SHEET_ID, row.id).data
+            existing = client.Attachments.list_row_attachments(SOURCE_SHEET_ID, source_row_id).data
+            existing_names = {a.name for a in existing if a.attachment_type == "FILE"}
+
+            for att in target_attachments:
+                if att.attachment_type != "FILE" or att.name in existing_names:
+                    continue
+
+                file_obj = client.Attachments.get_attachment(TARGET_SHEET_ID, att.id)
+                path = download_attachment(att.name, file_obj.url)
+                if path:
+                    with open(path, "rb") as f:
+                        client.Attachments.attach_file_to_row(
+                            SOURCE_SHEET_ID, source_row_id, (att.name, f, 'application/octet-stream'))
+                    os.remove(path)
+                    print(f"📎 Synced back to source: {att.name}")
+        except Exception as e:
+            print(f"❌ Error syncing back row {row.id}: {e}")
+
 def copy_rows_with_mapping(source_rows, existing_wr_keys, target_sheet_id):
     for row in source_rows:
         try:
             if getattr(row, "locked", False):
                 continue
 
-            # ✅ Skip if COMPLETED DATE is filled
             completed = next((c.value for c in row.cells if c.column_id == COMPLETED_DATE_COLUMN_ID), None)
             if completed:
                 print(f"✅ Row {row.id} has COMPLETED DATE — skipping sync.")
@@ -139,7 +173,6 @@ def update_changed_rows(source_rows, target_rows, column_map):
             continue
         tgt_row = tgt_map[wr_key]
 
-        # ✅ Skip update if COMPLETED DATE is filled
         completed = next((c.value for c in src_row.cells if c.column_id == COMPLETED_DATE_COLUMN_ID), None)
         if completed:
             print(f"✅ Skipping update for WR #{wr_key}: COMPLETED DATE filled.")
@@ -196,6 +229,9 @@ def main():
 
         print("🛠️ Updating changed rows...")
         update_changed_rows(src.rows, tgt.rows, COLUMN_MAPPING)
+
+        print("🔁 Syncing attachments back to source...")
+        sync_target_attachments_to_source(src.rows, tgt.rows)
 
         print("🎉 Sync complete.")
     except Exception as e:
