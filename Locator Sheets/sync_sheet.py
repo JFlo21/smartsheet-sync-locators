@@ -21,6 +21,7 @@ COLUMN_MAPPING = {
 SOURCE_WR_NUMBER_COLUMN_ID = 488872658292612
 TARGET_WR_NUMBER_COLUMN_ID = 8148180422315908
 FOREMAN_COLUMN_ID = 5333430655209348
+COMPLETED_DATE_COLUMN_ID = 1051822611713924  # ✅ Added Completed Date column
 
 VALID_FOREMEN = [
     "Victor Duran", "Armando Garcia", "Paul Watson", "Chris Solomon", "Ricardo Martinez"
@@ -74,6 +75,12 @@ def copy_rows_with_mapping(source_rows, existing_wr_keys, target_sheet_id):
     for row in source_rows:
         try:
             if getattr(row, "locked", False):
+                continue
+
+            # ✅ Skip row if COMPLETED DATE is filled
+            completed = next((c.value for c in row.cells if c.column_id == COMPLETED_DATE_COLUMN_ID), None)
+            if completed:
+                print(f"✅ Row {row.id} has COMPLETED DATE — skipping sync.")
                 continue
 
             foreman = next((c.value for c in row.cells if c.column_id == FOREMAN_COLUMN_ID), None)
@@ -131,6 +138,13 @@ def update_changed_rows(source_rows, target_rows, column_map):
     for wr_key, src_row in src_map.items():
         if wr_key not in tgt_map:
             continue
+
+        # ✅ Skip update if COMPLETED DATE is filled
+        completed = next((c.value for c in src_row.cells if c.column_id == COMPLETED_DATE_COLUMN_ID), None)
+        if completed:
+            print(f"✅ Skipping update for WR #{wr_key}: COMPLETED DATE filled.")
+            continue
+
         tgt_row = tgt_map[wr_key]
         tgt_cell_map = {c.column_id: c.value for c in tgt_row.cells}
         updates = []
