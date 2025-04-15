@@ -59,5 +59,5 @@ jobs:
       SOURCE_SHEET_ID: ${{ secrets.SOURCE_SHEET_ID }}
       Smartsheet_Target_Sheet_ID_Frank: ${{ secrets. SMARTSHEET_TARGET_SHEET_ID_ALFREDO }}
 
-      run: python ./'Locator Sheets'/sync_sheet_alfredo.py
+     run: python ./'Locator Sheets'/sync_sheet_alfredo.py
      
