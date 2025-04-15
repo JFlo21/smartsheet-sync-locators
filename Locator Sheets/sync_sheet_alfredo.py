@@ -22,7 +22,7 @@ COMPLETED_DATE_COLUMN_ID = 641997801213828  # ✅ new date column
 
 VALID_FOREMEN = [
     "Gilberto Montez", "Ricardo Martinez", "Luis Arguello", "Rafael Lugo",
-    "Mervin Sandoval", "Juan Rubalcaba", "Francisco Martinez", "Thomas Pheanis", ""
+    "Mervin Sandoval", "Juan Rubalcaba", "Francisco Martinez", "Thomas Pheanis"
 ]
 
 client = smartsheet.Smartsheet(API_KEY)

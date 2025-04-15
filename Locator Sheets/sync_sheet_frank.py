@@ -25,7 +25,7 @@ COMPLETED_DATE_COLUMN_ID = 1051822611713924  # Shared in both sheets
 VALID_FOREMEN = [
     "Ramon Perez", "Christopher Tiner", "Alphonso Flores", "Joe Hatman",
     "Dylan Hester", "Kyle Wagner", "Jimmy Adames", "Cody Tipps",
-    "Walker Moody", "Travis McConnell"
+    "Walker Moody", "Travis McConnell", "Paul Watson"
 ]
 
 # Init Smartsheet client
