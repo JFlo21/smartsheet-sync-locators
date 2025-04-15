@@ -53,11 +53,12 @@ jobs:
         
       run: python ./'Locator Sheets'/sync_sheet_angel.py 
 
-    - name: Run Alfredo Lopez Workflow Step
-    env:
-      SMARTSHEET_API_KEY: ${{ secrets.SMARTSHEET_API_KEY }}
-      SOURCE_SHEET_ID: ${{ secrets.SOURCE_SHEET_ID }}
-      Smartsheet_Target_Sheet_ID_Frank: ${{ secrets. SMARTSHEET_TARGET_SHEET_ID_ALFREDO }}
+    - name: Run Fourth synchronization Step
+      env:
+        SMARTSHEET_API_KEY: ${{ secrets.SMARTSHEET_API_KEY }}
+        SOURCE_SHEET_ID: ${{ secrets.SOURCE_SHEET_ID }}
+        Smartsheet_Target_Sheet_ID_Frank: ${{ secrets. SMARTSHEET_TARGET_SHEET_ID_ALFREDO }}
 
-     run: python ./'Locator Sheets'/sync_sheet_alfredo.py
+      run: python ./'Locator Sheets'/sync_sheet_alfredo.py
+  
      
