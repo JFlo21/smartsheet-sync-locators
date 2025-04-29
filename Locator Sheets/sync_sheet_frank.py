@@ -1,6 +1,7 @@
 import smartsheet
 import os
 import requests
+import time
 from datetime import datetime
 
 # === CONFIGURATION ===
@@ -33,6 +34,23 @@ os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 client = smartsheet.Smartsheet(API_KEY)
 
 # === UTILITIES ===
+
+MAX_RETRIES = 5
+RETRY_DELAY = 3  # seconds
+POST_SUCCESS_DELAY = 1  # seconds
+
+def retry_operation(func, *args, **kwargs):
+    for attempt in range(MAX_RETRIES):
+        try:
+            result = func(*args, **kwargs)
+            time.sleep(POST_SUCCESS_DELAY)
+            return result
+        except smartsheet.exceptions.ApiError as e:
+            if "sheetId" in str(e) and attempt < MAX_RETRIES - 1:
+                print(f"⚠️ Sheet busy, retrying in {RETRY_DELAY}s (attempt {attempt+1}/{MAX_RETRIES})...")
+                time.sleep(RETRY_DELAY)
+            else:
+                raise
 
 def download_attachment_with_auth(file_url, file_path):
     headers = {
@@ -89,8 +107,10 @@ def copy_attachments(source_row_id, target_row_id):
 
             if download_attachment_with_auth(file_url, file_path):
                 with open(file_path, "rb") as f:
-                    client.Attachments.attach_file_to_row(
-                        TARGET_SHEET_ID, target_row_id, (att.name, f, 'application/octet-stream'))
+                    retry_operation(
+                        client.Attachments.attach_file_to_row,
+                        TARGET_SHEET_ID, target_row_id, (att.name, f, 'application/octet-stream')
+                    )
                 os.remove(file_path)
                 print(f"📤 Uploaded to target: {att.name}")
     except Exception as e:
@@ -126,10 +146,9 @@ def sync_target_attachments_to_source(source_rows, target_rows):
                     "column_id": SOURCE_COMPLETED_DATE_COLUMN_ID,
                     "value": tgt_completed
                 })]
-                client.Sheets.update_rows(SOURCE_SHEET_ID, [row_update])
+                retry_operation(client.Sheets.update_rows, SOURCE_SHEET_ID, [row_update])
                 print(f"🗓️ Synced Completed Date for WR #{wr_key}")
 
-            # Attachments
             target_attachments = client.Attachments.list_row_attachments(TARGET_SHEET_ID, row.id).data
             existing = client.Attachments.list_row_attachments(SOURCE_SHEET_ID, source_row_id).data
             existing_names = {a.name for a in existing if a.attachment_type == "FILE"}
@@ -143,11 +162,12 @@ def sync_target_attachments_to_source(source_rows, target_rows):
 
                 if download_attachment_with_auth(file_url, file_path):
                     with open(file_path, 'rb') as f:
-                        client.Attachments.attach_file_to_row(
-                            SOURCE_SHEET_ID, source_row_id, (att.name, f, 'application/octet-stream'))
+                        retry_operation(
+                            client.Attachments.attach_file_to_row,
+                            SOURCE_SHEET_ID, source_row_id, (att.name, f, 'application/octet-stream')
+                        )
                     os.remove(file_path)
                     print(f"🔁 Synced back to source: {att.name}")
-
         except Exception as e:
             print(f"❌ Error syncing back row {row.id}: {e}")
 
@@ -183,7 +203,7 @@ def copy_rows_with_mapping(source_rows, blocked_wr_keys, target_sheet_id):
                         "value": c.value
                     }))
 
-            created = client.Sheets.add_rows(target_sheet_id, [new_row]).result[0]
+            created = retry_operation(client.Sheets.add_rows, target_sheet_id, [new_row]).result[0]
             copy_attachments(row.id, created.id)
             print(f"✅ Copied new WR #{wr_key}")
 
@@ -232,7 +252,7 @@ def update_changed_rows(source_rows, target_rows, column_map):
                 "column_id": SOURCE_COMPLETED_DATE_COLUMN_ID,
                 "value": tgt_completed
             })]
-            client.Sheets.update_rows(SOURCE_SHEET_ID, [src_update])
+            retry_operation(client.Sheets.update_rows, SOURCE_SHEET_ID, [src_update])
             print(f"🗓️ Synced Completed Date to source for WR #{wr_key}")
 
         tgt_cell_map = {c.column_id: c.value for c in tgt_row.cells}
@@ -253,7 +273,7 @@ def update_changed_rows(source_rows, target_rows, column_map):
             row_update.id = tgt_row.id
             row_update.cells = updates
             try:
-                client.Sheets.update_rows(TARGET_SHEET_ID, [row_update])
+                retry_operation(client.Sheets.update_rows, TARGET_SHEET_ID, [row_update])
                 print(f"🔁 Updated WR #{wr_key}")
             except Exception as e:
                 print(f"❌ Update failed for WR #{wr_key}: {e}")
