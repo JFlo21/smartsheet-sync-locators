@@ -16,7 +16,8 @@ COLUMN_MAPPING = {
 SOURCE_WR_NUMBER_COLUMN_ID = 488872658292612
 TARGET_WR_NUMBER_COLUMN_ID = 8148180422315908
 FOREMAN_COLUMN_ID = 7525747076059012
-COMPLETED_DATE_COLUMN_ID = 1051822611713924
+SOURCE_COMPLETED_DATE_COLUMN_ID = 1051822611713924
+TARGET_COMPLETED_DATE_COLUMN_ID = 1955730934681476
 
 VALID_FOREMEN = [
     "Victor Duran", "Armando Garcia", "Paul Watson",
@@ -83,14 +84,14 @@ def sync_target_attachments_to_source(source_rows, target_rows):
             source_row = src_map[wr_key]
             source_row_id = source_row.id
 
-            tgt_completed = next((c.value for c in row.cells if c.column_id == COMPLETED_DATE_COLUMN_ID), None)
-            src_completed = next((c.value for c in source_row.cells if c.column_id == COMPLETED_DATE_COLUMN_ID), None)
+            tgt_completed = next((c.value for c in row.cells if c.column_id == TARGET_COMPLETED_DATE_COLUMN_ID), None)
+            src_completed = next((c.value for c in source_row.cells if c.column_id == SOURCE_COMPLETED_DATE_COLUMN_ID), None)
 
             if tgt_completed and not src_completed:
                 row_update = smartsheet.models.Row()
                 row_update.id = source_row_id
                 row_update.cells = [smartsheet.models.Cell({
-                    "column_id": COMPLETED_DATE_COLUMN_ID,
+                    "column_id": SOURCE_COMPLETED_DATE_COLUMN_ID,
                     "value": tgt_completed
                 })]
                 client.Sheets.update_rows(SOURCE_SHEET_ID, [row_update])
@@ -117,10 +118,6 @@ def copy_rows_with_mapping(source_rows, existing_wr_keys, target_sheet_id):
     for row in source_rows:
         try:
             if getattr(row, "locked", False):
-                continue
-
-            completed = next((c.value for c in row.cells if c.column_id == COMPLETED_DATE_COLUMN_ID), None)
-            if completed:
                 continue
 
             foreman = next((c.value for c in row.cells if c.column_id == FOREMAN_COLUMN_ID), None)
@@ -175,14 +172,28 @@ def update_changed_rows(source_rows, target_rows, column_map):
         if wr_key not in tgt_map:
             continue
 
-        completed = next((c.value for c in src_row.cells if c.column_id == COMPLETED_DATE_COLUMN_ID), None)
-        if completed:
-            continue
-
         tgt_row = tgt_map[wr_key]
-        tgt_cell_map = {c.column_id: c.value for c in tgt_row.cells}
+        src_completed = next((c.value for c in src_row.cells if c.column_id == SOURCE_COMPLETED_DATE_COLUMN_ID), None)
+        tgt_completed = next((c.value for c in tgt_row.cells if c.column_id == TARGET_COMPLETED_DATE_COLUMN_ID), None)
+
         updates = []
 
+        if src_completed and not tgt_completed:
+            updates.append(smartsheet.models.Cell({
+                "column_id": TARGET_COMPLETED_DATE_COLUMN_ID,
+                "value": src_completed
+            }))
+        elif tgt_completed and not src_completed:
+            src_update = smartsheet.models.Row()
+            src_update.id = src_row.id
+            src_update.cells = [smartsheet.models.Cell({
+                "column_id": SOURCE_COMPLETED_DATE_COLUMN_ID,
+                "value": tgt_completed
+            })]
+            client.Sheets.update_rows(SOURCE_SHEET_ID, [src_update])
+            print(f"🗓️ Synced Completed Date to source for WR #{wr_key}")
+
+        tgt_cell_map = {c.column_id: c.value for c in tgt_row.cells}
         for sc in src_row.cells:
             if sc.column_id in column_map:
                 tgt_col = column_map[sc.column_id]

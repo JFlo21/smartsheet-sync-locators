@@ -18,7 +18,8 @@ COLUMN_MAPPING = {
 SOURCE_WR_NUMBER_COLUMN_ID = 488872658292612
 TARGET_WR_NUMBER_COLUMN_ID = 2335664257585028
 FOREMAN_COLUMN_ID = 7525747076059012
-COMPLETED_DATE_COLUMN_ID = 1051822611713924
+SOURCE_COMPLETED_DATE_COLUMN_ID = 1051822611713924
+TARGET_COMPLETED_DATE_COLUMN_ID = 7965163791798148
 
 VALID_FOREMEN = [
     "Ramon Perez", "Christopher Tiner", "Alphonso Flores", "Joe Hatman",
@@ -66,7 +67,7 @@ def get_completed_wr_keys(rows, wr_col_id, completed_col_id):
             except: pass
     return result
 
-# === ATTACHMENT SYNC (Updated) ===
+# === ATTACHMENTS ===
 
 def copy_attachments(source_row_id, target_row_id):
     try:
@@ -92,7 +93,6 @@ def copy_attachments(source_row_id, target_row_id):
                     with open(file_path, "rb") as f:
                         client.Attachments.attach_file_to_row(
                             TARGET_SHEET_ID, target_row_id, (att.name, f, 'application/octet-stream'))
-
                     os.remove(file_path)
                     print(f"📤 Uploaded to target: {att.name}")
                 else:
@@ -121,20 +121,20 @@ def sync_target_attachments_to_source(source_rows, target_rows):
             source_row = src_map[wr_key]
             source_row_id = source_row.id
 
-            # Sync Completed Date
-            tgt_completed = next((c.value for c in row.cells if c.column_id == COMPLETED_DATE_COLUMN_ID), None)
-            src_completed = next((c.value for c in source_row.cells if c.column_id == COMPLETED_DATE_COLUMN_ID), None)
+            tgt_completed = next((c.value for c in row.cells if c.column_id == TARGET_COMPLETED_DATE_COLUMN_ID), None)
+            src_completed = next((c.value for c in source_row.cells if c.column_id == SOURCE_COMPLETED_DATE_COLUMN_ID), None)
+
             if tgt_completed and not src_completed:
                 row_update = smartsheet.models.Row()
                 row_update.id = source_row_id
                 row_update.cells = [smartsheet.models.Cell({
-                    "column_id": COMPLETED_DATE_COLUMN_ID,
+                    "column_id": SOURCE_COMPLETED_DATE_COLUMN_ID,
                     "value": tgt_completed
                 })]
                 client.Sheets.update_rows(SOURCE_SHEET_ID, [row_update])
                 print(f"🗓️ Synced Completed Date for WR #{wr_key}")
 
-            # Sync attachments from target to source
+            # Attachments
             target_attachments = client.Attachments.list_row_attachments(TARGET_SHEET_ID, row.id).data
             existing = client.Attachments.list_row_attachments(SOURCE_SHEET_ID, source_row_id).data
             existing_names = {a.name for a in existing if a.attachment_type == "FILE"}
@@ -142,25 +142,19 @@ def sync_target_attachments_to_source(source_rows, target_rows):
             for att in target_attachments:
                 if att.attachment_type != "FILE" or att.name in existing_names:
                     continue
+                file_meta = client.Attachments.get_attachment(TARGET_SHEET_ID, att.id)
+                file_url = file_meta.url
                 file_path = os.path.join(DOWNLOAD_FOLDER, att.name)
-                try:
-                    file_meta = client.Attachments.get_attachment(TARGET_SHEET_ID, att.id)
-                    file_url = file_meta.url
-                    response = requests.get(file_url, stream=True)
-                    if response.status_code == 200:
-                        with open(file_path, 'wb') as f:
-                            for chunk in response.iter_content(chunk_size=8192):
-                                f.write(chunk)
-
-                        with open(file_path, "rb") as f:
-                            client.Attachments.attach_file_to_row(
-                                SOURCE_SHEET_ID, source_row_id, (att.name, f, 'application/octet-stream'))
-                        os.remove(file_path)
-                        print(f"🔁 Synced back to source: {att.name}")
-                    else:
-                        print(f"❌ Download failed: {att.name} (HTTP {response.status_code})")
-                except Exception as e:
-                    print(f"❌ Error syncing attachment {att.name}: {e}")
+                response = requests.get(file_url, stream=True)
+                if response.status_code == 200:
+                    with open(file_path, 'wb') as f:
+                        for chunk in response.iter_content(chunk_size=8192):
+                            f.write(chunk)
+                    with open(file_path, "rb") as f:
+                        client.Attachments.attach_file_to_row(
+                            SOURCE_SHEET_ID, source_row_id, (att.name, f, 'application/octet-stream'))
+                    os.remove(file_path)
+                    print(f"🔁 Synced back to source: {att.name}")
         except Exception as e:
             print(f"❌ Error syncing back row {row.id}: {e}")
 
@@ -203,7 +197,7 @@ def copy_rows_with_mapping(source_rows, blocked_wr_keys, target_sheet_id):
         except Exception as e:
             print(f"❌ Error copying row {row.id}: {e}")
 
-def update_changed_rows(source_rows, target_rows, column_map, completed_sources, completed_targets):
+def update_changed_rows(source_rows, target_rows, column_map):
     print("\n🔧 Checking for updates...")
     src_map, tgt_map = {}, {}
 
@@ -224,13 +218,29 @@ def update_changed_rows(source_rows, target_rows, column_map, completed_sources,
     for wr_key, src_row in src_map.items():
         if wr_key not in tgt_map:
             continue
-        if wr_key in completed_sources or wr_key in completed_targets:
-            continue
 
         tgt_row = tgt_map[wr_key]
-        tgt_cell_map = {c.column_id: c.value for c in tgt_row.cells}
+        src_completed = next((c.value for c in src_row.cells if c.column_id == SOURCE_COMPLETED_DATE_COLUMN_ID), None)
+        tgt_completed = next((c.value for c in tgt_row.cells if c.column_id == TARGET_COMPLETED_DATE_COLUMN_ID), None)
+
         updates = []
 
+        if src_completed and not tgt_completed:
+            updates.append(smartsheet.models.Cell({
+                "column_id": TARGET_COMPLETED_DATE_COLUMN_ID,
+                "value": src_completed
+            }))
+        elif tgt_completed and not src_completed:
+            src_update = smartsheet.models.Row()
+            src_update.id = src_row.id
+            src_update.cells = [smartsheet.models.Cell({
+                "column_id": SOURCE_COMPLETED_DATE_COLUMN_ID,
+                "value": tgt_completed
+            })]
+            client.Sheets.update_rows(SOURCE_SHEET_ID, [src_update])
+            print(f"🗓️ Synced Completed Date to source for WR #{wr_key}")
+
+        tgt_cell_map = {c.column_id: c.value for c in tgt_row.cells}
         for sc in src_row.cells:
             if sc.column_id in column_map:
                 tgt_col = column_map[sc.column_id]
@@ -253,7 +263,7 @@ def update_changed_rows(source_rows, target_rows, column_map, completed_sources,
             except Exception as e:
                 print(f"❌ Update failed for WR #{wr_key}: {e}")
 
-# === MAIN EXECUTION ===
+# === MAIN ===
 
 def main():
     try:
@@ -266,15 +276,12 @@ def main():
 
         print("🔎 Gathering WR numbers...")
         target_wr_keys = set(get_wr_number_map(tgt.rows, TARGET_WR_NUMBER_COLUMN_ID).values())
-        completed_sources = get_completed_wr_keys(src.rows, SOURCE_WR_NUMBER_COLUMN_ID, COMPLETED_DATE_COLUMN_ID)
-        completed_targets = get_completed_wr_keys(tgt.rows, TARGET_WR_NUMBER_COLUMN_ID, COMPLETED_DATE_COLUMN_ID)
 
         print("📤 Copying new rows...")
-        blocked_wr_keys = target_wr_keys.union(completed_targets)
-        copy_rows_with_mapping(src.rows, blocked_wr_keys, TARGET_SHEET_ID)
+        copy_rows_with_mapping(src.rows, target_wr_keys, TARGET_SHEET_ID)
 
         print("🛠️ Updating changed rows...")
-        update_changed_rows(src.rows, tgt.rows, COLUMN_MAPPING, completed_sources, completed_targets)
+        update_changed_rows(src.rows, tgt.rows, COLUMN_MAPPING)
 
         print("🔁 Syncing target ➜ source...")
         sync_target_attachments_to_source(src.rows, tgt.rows)
