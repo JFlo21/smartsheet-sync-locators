@@ -32,19 +32,21 @@ os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
 client = smartsheet.Smartsheet(API_KEY)
 
-# === VALIDATION ===
-
-def validate_column_mapping(source_sheet, target_sheet, column_map):
-    source_columns = {col.id: col.title for col in source_sheet.columns}
-    target_columns = {col.id: col.title for col in target_sheet.columns}
-    for src_id, tgt_id in column_map.items():
-        if src_id not in source_columns:
-            raise ValueError(f"❌ Missing SOURCE column ID: {src_id}")
-        if tgt_id not in target_columns:
-            raise ValueError(f"❌ Missing TARGET column ID: {tgt_id}")
-    print("✅ Column mapping validated.")
-
 # === UTILITIES ===
+
+def download_attachment_with_auth(file_url, file_path):
+    headers = {
+        "Authorization": f"Bearer {API_KEY}"
+    }
+    response = requests.get(file_url, headers=headers, stream=True)
+    if response.status_code == 200:
+        with open(file_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+        return True
+    else:
+        print(f"❌ Download failed: {file_url} (HTTP {response.status_code})")
+        return False
 
 def get_wr_number_map(rows, column_id):
     result = {}
@@ -53,7 +55,8 @@ def get_wr_number_map(rows, column_id):
             if c.column_id == column_id and c.value:
                 try:
                     result[row.id] = int(str(c.value).split('.')[0])
-                except: pass
+                except:
+                    pass
     return result
 
 def get_completed_wr_keys(rows, wr_col_id, completed_col_id):
@@ -64,7 +67,8 @@ def get_completed_wr_keys(rows, wr_col_id, completed_col_id):
         if wr and completed:
             try:
                 result.add(int(str(wr).split('.')[0]))
-            except: pass
+            except:
+                pass
     return result
 
 # === ATTACHMENTS ===
@@ -83,22 +87,12 @@ def copy_attachments(source_row_id, target_row_id):
             file_url = attachment_meta.url
             file_path = os.path.join(DOWNLOAD_FOLDER, att.name)
 
-            try:
-                response = requests.get(file_url, stream=True)
-                if response.status_code == 200:
-                    with open(file_path, 'wb') as f:
-                        for chunk in response.iter_content(chunk_size=8192):
-                            f.write(chunk)
-
-                    with open(file_path, "rb") as f:
-                        client.Attachments.attach_file_to_row(
-                            TARGET_SHEET_ID, target_row_id, (att.name, f, 'application/octet-stream'))
-                    os.remove(file_path)
-                    print(f"📤 Uploaded to target: {att.name}")
-                else:
-                    print(f"❌ Download failed: {att.name} (HTTP {response.status_code})")
-            except Exception as e:
-                print(f"❌ Error downloading {att.name}: {e}")
+            if download_attachment_with_auth(file_url, file_path):
+                with open(file_path, "rb") as f:
+                    client.Attachments.attach_file_to_row(
+                        TARGET_SHEET_ID, target_row_id, (att.name, f, 'application/octet-stream'))
+                os.remove(file_path)
+                print(f"📤 Uploaded to target: {att.name}")
     except Exception as e:
         print(f"❌ Attachment sync error: {e}")
 
@@ -110,7 +104,8 @@ def sync_target_attachments_to_source(source_rows, target_rows):
             if c.column_id == SOURCE_WR_NUMBER_COLUMN_ID and c.value:
                 try:
                     src_map[int(str(c.value).split('.')[0])] = r
-                except: pass
+                except:
+                    pass
 
     for row in target_rows:
         try:
@@ -145,16 +140,14 @@ def sync_target_attachments_to_source(source_rows, target_rows):
                 file_meta = client.Attachments.get_attachment(TARGET_SHEET_ID, att.id)
                 file_url = file_meta.url
                 file_path = os.path.join(DOWNLOAD_FOLDER, att.name)
-                response = requests.get(file_url, stream=True)
-                if response.status_code == 200:
-                    with open(file_path, 'wb') as f:
-                        for chunk in response.iter_content(chunk_size=8192):
-                            f.write(chunk)
-                    with open(file_path, "rb") as f:
+
+                if download_attachment_with_auth(file_url, file_path):
+                    with open(file_path, 'rb') as f:
                         client.Attachments.attach_file_to_row(
                             SOURCE_SHEET_ID, source_row_id, (att.name, f, 'application/octet-stream'))
                     os.remove(file_path)
                     print(f"🔁 Synced back to source: {att.name}")
+
         except Exception as e:
             print(f"❌ Error syncing back row {row.id}: {e}")
 
@@ -206,14 +199,16 @@ def update_changed_rows(source_rows, target_rows, column_map):
             if c.column_id == SOURCE_WR_NUMBER_COLUMN_ID and c.value:
                 try:
                     src_map[int(str(c.value).split('.')[0])] = r
-                except: pass
+                except:
+                    pass
 
     for r in target_rows:
         for c in r.cells:
             if c.column_id == TARGET_WR_NUMBER_COLUMN_ID and c.value:
                 try:
                     tgt_map[int(str(c.value).split('.')[0])] = r
-                except: pass
+                except:
+                    pass
 
     for wr_key, src_row in src_map.items():
         if wr_key not in tgt_map:
@@ -292,3 +287,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
