@@ -4,18 +4,19 @@ import requests
 import time
 from datetime import datetime
 
-# === CONFIGURATION ===
-
+# API Key and Sheet IDs
 API_KEY = "wCQ53EjJ5LncpdIkuHH0ZC23nH3SEHDQnZSuN"
 SOURCE_SHEET_ID = "7261271259828100"
 TARGET_SHEET_ID = "1105533072265092"
 
+# Column mappings
 COLUMN_MAPPING = {
     7525747076059012: 1209764350742404,  # FOREMAN -> Foreman
     488872658292612: 2335664257585028,   # WORK REQUEST # -> WR #
     2740672471977860: 6839263884955524,  # LOCATION -> City
 }
 
+# Column IDs
 SOURCE_WR_NUMBER_COLUMN_ID = 488872658292612
 TARGET_WR_NUMBER_COLUMN_ID = 2335664257585028
 FOREMAN_COLUMN_ID = 7525747076059012
@@ -23,18 +24,16 @@ SOURCE_COMPLETED_DATE_COLUMN_ID = 1051822611713924
 TARGET_COMPLETED_DATE_COLUMN_ID = 7965163791798148
 
 VALID_FOREMEN = [
-    "Ramon Perez", "Christopher Tiner", "Alphonso Flores", "Joe Hatman",
+    "Ramon Perez", "Christopher Tiner",
     "Dylan Hester", "Kyle Wagner", "Jimmy Adames", "Cody Tipps",
-    "Walker Moody", "Travis McConnell", "Paul Watson"
+    "Walker Moody", "Travis McConnell", "John Bishop"
 ]
 
+client = smartsheet.Smartsheet(API_KEY)
 DOWNLOAD_FOLDER = "C:/Users/juflores/OneDrive - Centuri Group, Inc/Smartsheet-download-attachment-automation"
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
-client = smartsheet.Smartsheet(API_KEY)
-
-# === UTILITIES ===
-
+# Retry configuration
 MAX_RETRIES = 5
 RETRY_DELAY = 3  # seconds
 POST_SUCCESS_DELAY = 1  # seconds
@@ -88,8 +87,6 @@ def get_completed_wr_keys(rows, wr_col_id, completed_col_id):
             except:
                 pass
     return result
-
-# === ATTACHMENTS ===
 
 def copy_attachments(source_row_id, target_row_id):
     try:
@@ -170,8 +167,6 @@ def sync_target_attachments_to_source(source_rows, target_rows):
                     print(f"🔁 Synced back to source: {att.name}")
         except Exception as e:
             print(f"❌ Error syncing back row {row.id}: {e}")
-
-# === ROW OPERATIONS ===
 
 def copy_rows_with_mapping(source_rows, blocked_wr_keys, target_sheet_id):
     for row in source_rows:
@@ -278,8 +273,7 @@ def update_changed_rows(source_rows, target_rows, column_map):
             except Exception as e:
                 print(f"❌ Update failed for WR #{wr_key}: {e}")
 
-# === MAIN ===
-
+# Main function
 def main():
     try:
         print("📥 Loading source & target sheets...")
@@ -287,7 +281,7 @@ def main():
         tgt = client.Sheets.get_sheet(TARGET_SHEET_ID, include=["attachments"])
 
         print("🔍 Validating columns...")
-        validate_column_mapping(src, tgt, COLUMN_MAPPING)
+        validate_column_mapping(tgt, COLUMN_MAPPING)
 
         print("🔎 Gathering WR numbers...")
         target_wr_keys = set(get_wr_number_map(tgt.rows, TARGET_WR_NUMBER_COLUMN_ID).values())
