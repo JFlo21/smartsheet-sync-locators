@@ -88,14 +88,22 @@ def sync_target_attachments_to_source(source_rows, target_rows):
             src_completed = next((c.value for c in source_row.cells if c.column_id == SOURCE_COMPLETED_DATE_COLUMN_ID), None)
 
             if tgt_completed and not src_completed:
-                row_update = smartsheet.models.Row()
-                row_update.id = source_row_id
-                row_update.cells = [smartsheet.models.Cell({
-                    "column_id": SOURCE_COMPLETED_DATE_COLUMN_ID,
-                    "value": tgt_completed
-                })]
-                client.Sheets.update_rows(SOURCE_SHEET_ID, [row_update])
-                print(f"🗓️ Synced Completed Date for WR #{wr_key}")
+                try:
+                    if isinstance(tgt_completed, str):
+                        tgt_completed = datetime.strptime(tgt_completed, "%Y-%m-%d").date()
+                    elif isinstance(tgt_completed, datetime):
+                        tgt_completed = tgt_completed.date()
+
+                    row_update = smartsheet.models.Row()
+                    row_update.id = source_row_id
+                    row_update.cells = [smartsheet.models.Cell({
+                        "column_id": SOURCE_COMPLETED_DATE_COLUMN_ID,
+                        "value": tgt_completed
+                    })]
+                    client.Sheets.update_rows(SOURCE_SHEET_ID, [row_update])
+                    print(f"🗓️ Synced Completed Date for WR #{wr_key}")
+                except Exception as e:
+                    print(f"❌ Date conversion error for WR #{wr_key}: {e}")
 
             target_attachments = client.Attachments.list_row_attachments(TARGET_SHEET_ID, row.id).data
             existing = client.Attachments.list_row_attachments(SOURCE_SHEET_ID, source_row_id).data
@@ -179,19 +187,18 @@ def update_changed_rows(source_rows, target_rows, column_map):
         updates = []
 
         if src_completed and not tgt_completed:
-            updates.append(smartsheet.models.Cell({
-                "column_id": TARGET_COMPLETED_DATE_COLUMN_ID,
-                "value": src_completed
-            }))
-        elif tgt_completed and not src_completed:
-            src_update = smartsheet.models.Row()
-            src_update.id = src_row.id
-            src_update.cells = [smartsheet.models.Cell({
-                "column_id": SOURCE_COMPLETED_DATE_COLUMN_ID,
-                "value": tgt_completed
-            })]
-            client.Sheets.update_rows(SOURCE_SHEET_ID, [src_update])
-            print(f"🗓️ Synced Completed Date to source for WR #{wr_key}")
+            try:
+                if isinstance(src_completed, str):
+                    src_completed = datetime.strptime(src_completed, "%Y-%m-%d").date()
+                elif isinstance(src_completed, datetime):
+                    src_completed = src_completed.date()
+
+                updates.append(smartsheet.models.Cell({
+                    "column_id": TARGET_COMPLETED_DATE_COLUMN_ID,
+                    "value": src_completed
+                }))
+            except Exception as e:
+                print(f"❌ Date conversion error for WR #{wr_key}: {e}")
 
         tgt_cell_map = {c.column_id: c.value for c in tgt_row.cells}
         for sc in src_row.cells:
