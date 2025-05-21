@@ -22,7 +22,7 @@ COMPLETED_DATE_COLUMN_ID = 641997801213828
 TARGET_COMPLETED_DATE_COLUMN_ID = 641997801213828
 
 VALID_FOREMEN = [
-    "Gilberto Montez", "Ricardo Martinez", "Luis Arguello", "Rafael Lugo",
+    "Gilberto Montez", "Ricardo Martinez - 484", "Luis Arguello", "Rafael Lugo",
     "Mervin Sandoval", "Juan Rubalcaba", "Francisco Martinez", "Thomas Pheanis"
 ]
 
