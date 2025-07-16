@@ -23,7 +23,7 @@ COMPLETED_DATE_COLUMN_ID = 1051822611713924   # Source sheet Completed Date
 TARGET_COMPLETED_DATE_COLUMN_ID = 5136570962890628 # New Target Completed Date
 
 VALID_FOREMEN = [
-   "Everado Arechiga", "Everado Arechiga Jr", "John Flores", "Carlos Villanueva"
+   "Everado Arechiga", "Everado Arechiga Jr", "John Flores", "Carlos Villanueva", 
 ]
 
 client = smartsheet.Smartsheet(API_KEY)
