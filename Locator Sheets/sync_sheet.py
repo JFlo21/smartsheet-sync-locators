@@ -20,7 +20,7 @@ SOURCE_COMPLETED_DATE_COLUMN_ID = 1051822611713924
 TARGET_COMPLETED_DATE_COLUMN_ID = 1955730934681476
 
 VALID_FOREMEN = [
-    "Victor Duran", "Armando Garcia", "Paul Watson",
+    "Victor Duran", "Paul Watson",
     "Chris Solomon", "Ricardo Martinez", "Christopher Ybarra"
 ]
 
